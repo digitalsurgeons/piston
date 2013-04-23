@@ -1,0 +1,198 @@
+#!/bin/bash
+
+# Find location of this script.
+# This ensures that only files in the directory in
+# which this script exists (recursively) are modified.
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Configurable variables.
+SOURCE="/path/to/ExpressionEngine/unzipped/folders/"
+
+pre() {
+
+	# Bail out without a version number
+	if [ ! $1 ]; then
+		echo >&2 "Provide a version number."; exit 1
+	fi
+
+	# Check that the source directories are there..
+
+	# Set variables
+	EE_VERSION="$1"
+
+	if [ ! $2 ]; then
+		SYSTEM="system"
+	else
+		echo "No system folder name given, assuming 'system'."
+		SYSTEM="$2"
+	fi
+
+	# Copy install files.
+	echo "Copying EE source files to current directory..."
+	cp -r "$SOURCE/$EE_VERSION/"* $DIR/
+	echo "Done."
+
+	# Remove crap
+	echo "Remove default themes that won't be used..."
+	rm -rf $DIR/themes/site_themes/agile_records
+	rm -rf $DIR/themes/wiki_themes/
+	rm -rf $DIR/themes/cp_themes/corporate/
+	rm -rf $DIR/themes/profile_themes/agile_records/
+	echo "Done."
+
+	# Make public_html and move stuff around
+	echo "Setting up a sane folder structure..."
+	mkdir -p $DIR/public_html/$SYSTEM
+	mv $DIR/system/expressionengine/templates $DIR/
+	mv $DIR/system/expressionengine/third_party $DIR/
+	mv $DIR/index.php $DIR/public_html/
+	mv $DIR/themes $DIR/public_html/
+	mv $DIR/images $DIR/public_html/
+	mv $DIR/admin.php $DIR/public_html/$SYSTEM/index.php
+	echo "Done."
+
+	# Add permissions script and run it
+	echo "Enforce required permissions..."
+	curl -Lo $DIR/perm.sh https://gist.github.com/raw/3247997/d8921b4910e257c30a4ecb5e16aa4fc3d89f38a7/perm.sh
+	chmod 0755 $DIR/perm.sh
+	source $DIR/perm.sh
+	echo "Done."
+
+	# Correct the index files to point correctly.
+	echo "Set correct system folder path in indexes..."
+	ruby -i -pe "gsub(/system_path\s+=\s+['\"]\.\/system['\"]/, 'system_path = \'../system\'')" $DIR/public_html/index.php
+	ruby -i -pe "gsub(/system_path\s+=\s+['\"]\.\/system['\"]/, 'system_path = \'../../system\'')" $DIR/public_html/$SYSTEM/index.php
+	echo "Done."
+
+	# Give further instructions to the user
+	echo "Visit the control panel in your browser (at <base_url>/$SYSTEM/) and use the installer. Once done, run the post job."
+
+}
+
+post() {
+
+	# Set some config overrides
+	# Remove index.php from url
+	curl -L https://gist.github.com/raw/5264619/9b6dd18d331551dcbd8b98c7df430b19d3e0314b/config-overrides.php >> $DIR/system/expressionengine/config/config.php
+
+	# Make the htaccess
+	echo "Generating the htaccess file."
+	touch $DIR/public_html/.htaccess
+
+	## Add conditional auth snippet
+	curl -L https://gist.github.com/raw/2636437/99d2cf0ee68256ff5c4a6abb5e1612b38d35c0db/.htaccess >>$DIR/public_html/.htaccess
+	echo "" >>$DIR/public_html/.htaccess
+
+	## Add EE index.php removing snippet
+	curl -L https://gist.github.com/raw/5296158/688a88d093396dd316d96eed6571b220f04151ab/.htaccess >>$DIR/public_html/.htaccess
+	echo "" >>$DIR/public_html/.htaccess
+
+	## Add standard h5bp htaccess.
+	curl -L https://github.com/h5bp/html5-boilerplate/raw/master/.htaccess >>$DIR/public_html/.htaccess
+	echo "" >>$DIR/public_html/.htaccess
+
+	echo "Done."
+
+	# Remove installer
+	echo "Removing installer directory..."
+	rm -rf $DIR/system/installer
+	echo "Done."
+
+	# Run permissions again
+	echo "Once again ensure permissions are correct..."
+	source $DIR/perm.sh
+	echo "Done."
+
+	echo "Consider running `basename $0` laxify to set up Laxative, and `basename $0` gitify to initialize git properly."
+
+}
+
+gitify() {
+
+	# Make the gitignore.
+	echo "Generating gitignores..."
+	curl -Lo .gitignore https://gist.github.com/raw/2936713/b22e6e3c97ad5504f45c5744ec1d98b3cc1c7b39/.gitignore
+	curl -Lo system/expressionengine/cache/.gitignore https://gist.github.com/raw/2936703/d6b7ef32c8478a48c3994dcadc86837f4371184d/.gitignore
+	gitignorify
+	echo "Done."
+
+	# Start git
+	echo "Setting up repository..."
+	git init && git add . && git commit -m "Initial commit"
+	echo "Done."
+
+}
+
+gitignorify() {
+
+	cp -f system/expressionengine/cache/.gitignore public_html/images/**/_thumbs/
+
+	if [ -d public_html/images/made ]; then
+		cp -f system/expressionengine/cache/.gitignore public_html/images/made/
+	fi
+
+	if [ -d public_html/images/sized ]; then
+		cp -f system/expressionengine/cache/.gitignore public_html/images/sized/
+	fi
+
+	if [ -d public_html/images/remote ]; then
+		cp -f system/expressionengine/cache/.gitignore public_html/images/remote/
+	fi
+
+}
+
+usage() {
+
+  	read -r -d '' USAGE_TEXT <<HEREDOC
+\033[1mUsage:\033[0m
+	`basename $0` <command>
+
+\033[1mDescription:\033[0m
+	An opinionated tool for automating installs of ExpressionEngine from source zipballs.
+
+\033[1mCommands:\033[0m
+	\033[1mpre\033[0m - Run the pre-install process, which sets up the folder structure.
+		\033[1mArguments:\033[0m pre <ee_version_number> [<system_folder_name>]
+		<ee_version_number> - What version of EE to install. Must be present in the configured source directory.
+		<system_folder_name> - Optional. What to name the system folder for url access. Note that this only changes the name of the system folder in public_html, not the name of the real system folder above root.
+
+	\033[1mpost\033[0m - Run the post-install process, which should be done after the installer has been run from the browser.
+
+	\033[1mlaxify\033[0m - Install laxative and run for the first time.
+
+	\033[1mgitify\033[0m - Set git up in the current folder.
+
+	\033[1mgitignorify\033[0m - Ensure all thumbnail and image cache directories are being gitignored. Run this when you've added new upload destinations, CE Image, or Image Sizer.
+
+	\033[1mhelp\033[0m - Display this message.
+HEREDOC
+
+	echo -e "$USAGE_TEXT"
+	exit 1
+
+}
+
+main() {
+
+	# Bail out without an action.
+	if [ ! $1 ]; then
+		usage
+	fi
+
+	COMMAND=$1; shift
+
+	case $1 in
+		"pre")
+			pre $@
+			;;
+		"post")
+			post $@
+			;;
+		"help")
+			usage
+			;;
+	esac
+
+}
+
+main $@
