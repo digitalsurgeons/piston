@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Find location of this script.
-# This ensures that only files in the directory in
-# which this script exists (recursively) are modified.
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
 # Configurable variables.
 SOURCE="/path/to/ExpressionEngine/unzipped/folders/"
 
@@ -12,7 +7,7 @@ pre() {
 
 	# Bail out without a version number
 	if [ ! $1 ]; then
-		echo >&2 "Provide a version number."; exit 1
+		echo >&2 "    Provide a version number."; exit 1
 	fi
 
 	# Check that the source directories are there..
@@ -21,87 +16,89 @@ pre() {
 	EE_VERSION="$1"
 
 	if [ ! $2 ]; then
+		echo "    No system folder name given, assuming 'system'."
 		SYSTEM="system"
 	else
-		echo "No system folder name given, assuming 'system'."
 		SYSTEM="$2"
 	fi
 
 	# Copy install files.
-	echo "Copying EE source files to current directory..."
-	cp -r "$SOURCE/$EE_VERSION/"* $DIR/
-	echo "Done."
+	echo ":: Copying EE source files to current directory..."
+
+	if [[  -d "$SOURCE/$EE_VERSION" ]]; then
+		cp -r "$SOURCE/$EE_VERSION/"* ./
+	else
+		echo >&2 "ExpressionEngine source files not found. Check your SOURCE variable is pointing to the right place and that the version of ExpressionEngine exists there."; exit 2;
+	fi
+
 
 	# Remove crap
-	echo "Remove default themes that won't be used..."
-	rm -rf $DIR/themes/site_themes/agile_records
-	rm -rf $DIR/themes/wiki_themes/
-	rm -rf $DIR/themes/cp_themes/corporate/
-	rm -rf $DIR/themes/profile_themes/agile_records/
-	echo "Done."
+	echo ":: Remove default themes that won't be used..."
+	rm -rf ./themes/site_themes/agile_records
+	rm -rf ./themes/wiki_themes/
+	rm -rf ./themes/cp_themes/corporate/
+	rm -rf ./themes/profile_themes/agile_records/
 
 	# Make public_html and move stuff around
-	echo "Setting up a sane folder structure..."
-	mkdir -p $DIR/public_html/$SYSTEM
-	mv $DIR/system/expressionengine/templates $DIR/
-	mv $DIR/system/expressionengine/third_party $DIR/
-	mv $DIR/index.php $DIR/public_html/
-	mv $DIR/themes $DIR/public_html/
-	mv $DIR/images $DIR/public_html/
-	mv $DIR/admin.php $DIR/public_html/$SYSTEM/index.php
-	echo "Done."
+	echo ":: Setting up a sane folder structure..."
+	mkdir -p ./public_html/$SYSTEM
+	mv ./system/expressionengine/templates ./
+	mv ./system/expressionengine/third_party ./
+	mv ./index.php ./public_html/
+	mv ./themes ./public_html/
+	mv ./images ./public_html/
+	mv ./admin.php ./public_html/$SYSTEM/index.php
 
 	# Add permissions script and run it
-	echo "Enforce required permissions..."
-	curl -Lo $DIR/perm.sh https://gist.github.com/raw/3247997/d8921b4910e257c30a4ecb5e16aa4fc3d89f38a7/perm.sh
-	chmod 0755 $DIR/perm.sh
-	source $DIR/perm.sh
-	echo "Done."
+	echo ":: Enforce required permissions..."
+	chmod -R o+w ./templates
+	chmod -R o+w ./system/expressionengine/cache
+	chmod 0666 ./system/expressionengine/config/config.php
+	chmod 0666 ./system/expressionengine/config/database.php
 
 	# Correct the index files to point correctly.
-	echo "Set correct system folder path in indexes..."
-	ruby -i -pe "gsub(/system_path\s+=\s+['\"]\.\/system['\"]/, 'system_path = \'../system\'')" $DIR/public_html/index.php
-	ruby -i -pe "gsub(/system_path\s+=\s+['\"]\.\/system['\"]/, 'system_path = \'../../system\'')" $DIR/public_html/$SYSTEM/index.php
-	echo "Done."
+	echo ":: Set correct system folder path in indexes..."
+	ruby -i -pe "gsub(/system_path\s+=\s+['\"]\.\/system['\"]/, 'system_path = \'../system\'')" ./public_html/index.php
+	ruby -i -pe "gsub(/system_path\s+=\s+['\"]\.\/system['\"]/, 'system_path = \'../../system\'')" ./public_html/$SYSTEM/index.php
 
 	# Give further instructions to the user
-	echo "Visit the control panel in your browser (at <base_url>/$SYSTEM/) and use the installer. Once done, run the post job."
+	echo "    Visit the control panel in your browser (at <base_url>/$SYSTEM/) and use the installer. Once done, run the post job."
 
 }
 
 post() {
 
-	# Set some config overrides
-	# Remove index.php from url
-	curl -L https://gist.github.com/raw/5264619/9b6dd18d331551dcbd8b98c7df430b19d3e0314b/config-overrides.php >> $DIR/system/expressionengine/config/config.php
+	# Install master config.
+	mkdir ./config
+	curl -L https://github.com/focuslabllc/ee-master-config/raw/master/config/config.dev.php > ./config/config.dev.php
+	curl -L https://github.com/focuslabllc/ee-master-config/raw/master/config/config.env.php > ./config/config.env.php
+	curl -L https://github.com/focuslabllc/ee-master-config/raw/master/config/config.local.php > ./config/config.local.php
+	curl -L https://github.com/focuslabllc/ee-master-config/raw/master/config/config.master.php > ./config/config.master.php
+	curl -L https://github.com/focuslabllc/ee-master-config/raw/master/config/config.prod.php > ./config/config.prod.php
+	curl -L https://github.com/focuslabllc/ee-master-config/raw/master/config/config.stage.php > ./config/config.stage.php
+	curl -L https://github.com/focuslabllc/ee-master-config/raw/master/system/expressionengine/config/database.php > ./system/expressionengine/config/database.php
+	curl -L https://gist.githubusercontent.com/EpocSquadron/c72a52ea51c272cf43bc/raw/9168ff2b93b6ee8ba6a02178b9648dae6afecc54/new_gist_file.php >> ./system/expressionengine/config/config.php
 
 	# Make the htaccess
-	echo "Generating the htaccess file."
-	touch $DIR/public_html/.htaccess
+	echo ":: Generating the htaccess file."
+	touch ./public_html/.htaccess
 
 	## Add conditional auth snippet
-	curl -L https://gist.github.com/raw/2636437/99d2cf0ee68256ff5c4a6abb5e1612b38d35c0db/.htaccess >>$DIR/public_html/.htaccess
-	echo "" >>$DIR/public_html/.htaccess
+	curl -L https://gist.github.com/raw/2636437/99d2cf0ee68256ff5c4a6abb5e1612b38d35c0db/.htaccess >>./public_html/.htaccess
+	echo "" >>./public_html/.htaccess
 
 	## Add EE index.php removing snippet
-	curl -L https://gist.github.com/raw/5296158/688a88d093396dd316d96eed6571b220f04151ab/.htaccess >>$DIR/public_html/.htaccess
-	echo "" >>$DIR/public_html/.htaccess
+	curl -L https://gist.github.com/raw/5296158/688a88d093396dd316d96eed6571b220f04151ab/.htaccess >>./public_html/.htaccess
+	echo "" >>./public_html/.htaccess
 
 	## Add standard h5bp htaccess.
-	curl -L https://github.com/h5bp/html5-boilerplate/raw/master/.htaccess >>$DIR/public_html/.htaccess
-	echo "" >>$DIR/public_html/.htaccess
+	curl -L https://github.com/h5bp/html5-boilerplate/raw/master/.htaccess >>./public_html/.htaccess
+	echo "" >>./public_html/.htaccess
 
-	echo "Done."
 
 	# Remove installer
-	echo "Removing installer directory..."
-	rm -rf $DIR/system/installer
-	echo "Done."
-
-	# Run permissions again
-	echo "Once again ensure permissions are correct..."
-	source $DIR/perm.sh
-	echo "Done."
+	echo ":: Removing installer directory..."
+	rm -rf ./system/installer
 
 	echo "Consider running `basename $0` laxify to set up Laxative, and `basename $0` gitify to initialize git properly."
 
@@ -113,17 +110,6 @@ gitify() {
 	echo "Generating gitignores..."
 	curl -Lo .gitignore https://gist.github.com/raw/2936713/b22e6e3c97ad5504f45c5744ec1d98b3cc1c7b39/.gitignore
 	curl -Lo system/expressionengine/cache/.gitignore https://gist.github.com/raw/2936703/d6b7ef32c8478a48c3994dcadc86837f4371184d/.gitignore
-	gitignorify
-	echo "Done."
-
-	# Start git
-	echo "Setting up repository..."
-	git init && git add . && git commit -m "Initial commit"
-	echo "Done."
-
-}
-
-gitignorify() {
 
 	cp -f system/expressionengine/cache/.gitignore public_html/images/**/_thumbs/
 
@@ -138,6 +124,10 @@ gitignorify() {
 	if [ -d public_html/images/remote ]; then
 		cp -f system/expressionengine/cache/.gitignore public_html/images/remote/
 	fi
+
+	# Start git
+	echo "Setting up repository..."
+	git init && git add . && git commit -m "Initial commit"
 
 }
 
@@ -181,12 +171,15 @@ main() {
 
 	COMMAND=$1; shift
 
-	case $1 in
+	case $COMMAND in
 		"pre")
 			pre $@
 			;;
 		"post")
 			post $@
+			;;
+		"gitify")
+			gitify $@
 			;;
 		"help")
 			usage
