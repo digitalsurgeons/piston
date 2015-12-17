@@ -119,11 +119,7 @@ usage() {
 
 	\033[1mpost\033[0m - Run the post-install process, which should be done after the installer has been run from the browser.
 
-	\033[1mlaxify\033[0m - Install laxative and run for the first time.
-
 	\033[1mgitify\033[0m - Set git up in the current folder.
-
-	\033[1mgitignorify\033[0m - Ensure all thumbnail and image cache directories are being gitignored. Run this when you've added new upload destinations, CE Image, or Image Sizer.
 
 	\033[1mhelp\033[0m - Display this message.
 HEREDOC
