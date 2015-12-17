@@ -83,7 +83,7 @@ post() {
 	echo ":: Removing installer directory..."
 	rm -rf ./system/installer
 
-	echo "Consider running `basename $0` laxify to set up Laxative, and `basename $0` gitify to initialize git properly."
+	echo "Consider running `basename $0` gitify to initialize git with git flow and proper ignoring."
 
 }
 
