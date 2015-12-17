@@ -79,23 +79,6 @@ post() {
 	curl -L https://github.com/focuslabllc/ee-master-config/raw/master/system/expressionengine/config/database.php > ./system/expressionengine/config/database.php
 	curl -L https://gist.githubusercontent.com/EpocSquadron/c72a52ea51c272cf43bc/raw/9168ff2b93b6ee8ba6a02178b9648dae6afecc54/new_gist_file.php >> ./system/expressionengine/config/config.php
 
-	# Make the htaccess
-	echo ":: Generating the htaccess file."
-	touch ./public_html/.htaccess
-
-	## Add conditional auth snippet
-	curl -L https://gist.github.com/raw/2636437/99d2cf0ee68256ff5c4a6abb5e1612b38d35c0db/.htaccess >>./public_html/.htaccess
-	echo "" >>./public_html/.htaccess
-
-	## Add EE index.php removing snippet
-	curl -L https://gist.github.com/raw/5296158/688a88d093396dd316d96eed6571b220f04151ab/.htaccess >>./public_html/.htaccess
-	echo "" >>./public_html/.htaccess
-
-	## Add standard h5bp htaccess.
-	curl -L https://github.com/h5bp/html5-boilerplate/raw/master/.htaccess >>./public_html/.htaccess
-	echo "" >>./public_html/.htaccess
-
-
 	# Remove installer
 	echo ":: Removing installer directory..."
 	rm -rf ./system/installer
