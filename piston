@@ -92,25 +92,13 @@ gitify() {
 	# Make the gitignore.
 	echo "Generating gitignores..."
 	curl -Lo .gitignore https://gist.github.com/raw/2936713/b22e6e3c97ad5504f45c5744ec1d98b3cc1c7b39/.gitignore
-	curl -Lo system/expressionengine/cache/.gitignore https://gist.github.com/raw/2936703/d6b7ef32c8478a48c3994dcadc86837f4371184d/.gitignore
+	echo "*\n\!.gitignore" > system/expressionengine/cache/.gitignore
 
-	cp -f system/expressionengine/cache/.gitignore public_html/images/**/_thumbs/
-
-	if [ -d public_html/images/made ]; then
-		cp -f system/expressionengine/cache/.gitignore public_html/images/made/
-	fi
-
-	if [ -d public_html/images/sized ]; then
-		cp -f system/expressionengine/cache/.gitignore public_html/images/sized/
-	fi
-
-	if [ -d public_html/images/remote ]; then
-		cp -f system/expressionengine/cache/.gitignore public_html/images/remote/
-	fi
+	cp -f system/expressionengine/cache/.gitignore public_html/images/**/
 
 	# Start git
 	echo "Setting up repository..."
-	git init && git add . && git commit -m "Initial commit"
+	git flow init -d && git add . && git commit -m "Initial commit"
 
 }
 
